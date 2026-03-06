@@ -21,8 +21,8 @@ function loadFromURL() {
 
   try {
 
-    const decoded = atob(data);
-    const ids = decoded.split(",");
+    const decoded = atob(decodeURIComponent(data));
+    const ids = JSON.parse(decoded);
 
     ownedItems = new Set(ids);
     saveOwnedItems();
@@ -40,7 +40,9 @@ function loadFromURL() {
 function generateShareURL() {
 
   const ids = [...ownedItems];
-  const encoded = btoa(JSON.stringify(ids));
+  const encoded = encodeURIComponent(
+    btoa(JSON.stringify(ids))
+  );
 
   return `${location.origin}${location.pathname}?data=${encoded}`;
 
@@ -222,7 +224,9 @@ function render(grouped) {
 
 const groupStorageKey = "groupState_" + method;
 
-if (localStorage.getItem(groupStorageKey) === "true") {
+const savedState = localStorage.getItem(groupStorageKey);
+
+if (savedState === null || savedState === "true") {
   group.classList.add("collapsed");
 }
 
@@ -274,7 +278,9 @@ groupTitle.addEventListener("click", () => {
 
 const subStorageKey = "subGroupState_" + method + "_" + subMethod;
 
-if (localStorage.getItem(subStorageKey) === "true") {
+const savedSubState = localStorage.getItem(subStorageKey);
+
+if (savedSubState === null || savedSubState === "true") {
   subGroup.classList.add("collapsed");
 }
 

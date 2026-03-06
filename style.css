@@ -21,6 +21,10 @@ body {
 }
 
 .header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
   margin-bottom: 12px;
   background: linear-gradient(90deg, #63E5D8, #D9F890);
   padding: 14px 0;
@@ -34,6 +38,7 @@ body {
   position: absolute;
   top: 18px;
   right: 10px;
+  margin-left: 10px;
 
   padding: 6px 10px;
   font-size: 12px;
@@ -279,18 +284,33 @@ body {
     padding: 10px;
   }
 
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  #shareBtn {
+    margin-top: 8px;
+  }
+
   .header h1 {
-    font-size: 22px;
+    font-size: 20px;
   }
 
   .group-name {
+    word-break: break-word;
     font-size: 18px;
   }
 
   .group-title {
+    display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+  }
+
+  .group-count {
+    margin-top: 4px;
   }
 
   .group-buttons {
@@ -303,8 +323,8 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 
-  .item-inner{
-    padding:6px;
+  .item-inner {
+    padding: 6px;
   }
 
 }
