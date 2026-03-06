@@ -25,19 +25,16 @@ body {
   justify-content: space-between;
   align-items: center;
   flex-wrap: wrap;
+
   margin-bottom: 12px;
   background: linear-gradient(90deg, #63E5D8, #D9F890);
-  padding: 14px 0;
-  text-align: center;
+  padding: 14px 16px;
+
   border-radius: 10px;
-  position: relative;
 }
 
 #shareBtn {
 
-  position: absolute;
-  top: 18px;
-  right: 10px;
   margin-left: 10px;
 
   padding: 6px 10px;
@@ -278,7 +275,7 @@ body {
    スマホ対応
 ========================= */
 
-@media (max-width: 700px) {
+@media (max-width: 600px) {
 
   body {
     padding: 10px;
@@ -290,6 +287,16 @@ body {
   }
 
   #shareBtn {
+    margin-left: auto;
+
+    padding: 6px 10px;
+    font-size: 12px;
+
+    border-radius: 6px;
+    border: none;
+
+    background: white;
+    cursor: pointer;
     margin-top: 8px;
   }
 
@@ -303,28 +310,30 @@ body {
   }
 
   .group-title {
-    display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
   }
 
+  .group-title-left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
   .group-count {
-    margin-top: 4px;
+    margin-top: 2px;
   }
 
-  .group-buttons {
-    align-self: flex-end;
+  .sub-group-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
   }
 
-  /* 中グループ 2列 */
-
-  .sub-group-inner {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .item-inner {
-    padding: 6px;
+  .sub-count {
+    text-align: right;
+    margin-left: auto;
   }
 
 }
