@@ -9,29 +9,52 @@ const itemMap = new Map();
 const groupCache = new Map();
 
 let groupedData;
+let allItemIds = [];
 
 /* ===== URL読み込み ===== */
 
 function loadFromURL() {
 
   const params = new URLSearchParams(location.search);
-  const data = params.get("data");
+  const data = params.get("s");
 
-  if (!data) return;
+ if (!compressed) return;
 
-  try {
+try {
 
-    const decoded = atob(decodeURIComponent(data));
-    const ids = JSON.parse(decoded);
+  const base64 = LZString.decompressFromEncodedURIComponent(compressed);
 
-    ownedItems = new Set(ids);
-    saveOwnedItems();
+  const binary = atob(base64);
 
-  } catch {
+  const ids = allItemIds;
+  const newOwned = new Set();
 
-    console.warn("URLデータ読み込み失敗");
+  let bitIndex = 0;
+
+  for (let i = 0; i < binary.length; i++) {
+
+    const byte = binary.charCodeAt(i);
+
+    for (let b = 7; b >= 0; b--) {
+
+      if (bitIndex >= ids.length) break;
+
+      if ((byte >> b) & 1) {
+        newOwned.add(ids[bitIndex]);
+      }
+
+      bitIndex++;
+
+    }
 
   }
+
+  ownedItems = newOwned;
+  saveOwnedItems();
+
+} catch {
+  console.warn("URLデータ読み込み失敗");
+}
 
 }
 
@@ -39,12 +62,20 @@ function loadFromURL() {
 
 function generateShareURL() {
 
-  const ids = [...ownedItems];
-  const encoded = encodeURIComponent(
-    btoa(JSON.stringify(ids))
-  );
+  const bitArray = allItemIds.map(id => ownedItems.has(id) ? 1 : 0);
 
-  return `${location.origin}${location.pathname}?data=${encoded}`;
+  let binary = "";
+
+  for (let i = 0; i < bitArray.length; i += 8) {
+    const byte = bitArray.slice(i, i + 8).join("").padEnd(8, "0");
+    binary += String.fromCharCode(parseInt(byte, 2));
+  }
+
+  const base64 = btoa(binary);
+
+  const compressed = LZString.compressToEncodedURIComponent(base64);
+
+  return `${location.origin}${location.pathname}?s=${compressed}`;
 
 }
 
@@ -191,6 +222,8 @@ function calculateCounts(methodData) {
 function render(grouped) {
 
   groupedData = grouped;
+  allItemIds = [];
+  groupCache.clear();
 
   const fragment = document.createDocumentFragment();
 
@@ -222,33 +255,33 @@ function render(grouped) {
 
     /* ===== 折り畳み ===== */
 
-const groupStorageKey = "groupState_" + method;
+    const groupStorageKey = "groupState_" + method;
 
-const savedState = localStorage.getItem(groupStorageKey);
+    const savedState = localStorage.getItem(groupStorageKey);
 
-if (savedState === null || savedState === "true") {
-  group.classList.add("collapsed");
-}
+    if (savedState === null || savedState === "true") {
+      group.classList.add("collapsed");
+    }
 
-groupTitle.addEventListener("click", () => {
+    groupTitle.addEventListener("click", () => {
 
-  const before = group.getBoundingClientRect().top;
+      const before = group.getBoundingClientRect().top;
 
-  group.classList.toggle("collapsed");
+      group.classList.toggle("collapsed");
 
-  requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
 
-    const after = group.getBoundingClientRect().top;
-    window.scrollBy(0, after - before);
+        const after = group.getBoundingClientRect().top;
+        window.scrollBy(0, after - before);
 
-  });
+      });
 
-  localStorage.setItem(
-    groupStorageKey,
-    group.classList.contains("collapsed")
-  );
+      localStorage.setItem(
+        groupStorageKey,
+        group.classList.contains("collapsed")
+      );
 
-});
+    });
 
     const subCountMap = new Map();
 
@@ -276,33 +309,33 @@ groupTitle.addEventListener("click", () => {
 
       /* ===== 中グループ折り畳み ===== */
 
-const subStorageKey = "subGroupState_" + method + "_" + subMethod;
+      const subStorageKey = "subGroupState_" + method + "_" + subMethod;
 
-const savedSubState = localStorage.getItem(subStorageKey);
+      const savedSubState = localStorage.getItem(subStorageKey);
 
-if (savedSubState === null || savedSubState === "true") {
-  subGroup.classList.add("collapsed");
-}
+      if (savedSubState === null || savedSubState === "true") {
+        subGroup.classList.add("collapsed");
+      }
 
-subTitle.addEventListener("click", () => {
+      subTitle.addEventListener("click", () => {
 
-  const before = subGroup.getBoundingClientRect().top;
+        const before = subGroup.getBoundingClientRect().top;
 
-  subGroup.classList.toggle("collapsed");
+        subGroup.classList.toggle("collapsed");
 
-  requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
 
-    const after = subGroup.getBoundingClientRect().top;
-    window.scrollBy(0, after - before);
+          const after = subGroup.getBoundingClientRect().top;
+          window.scrollBy(0, after - before);
 
-  });
+        });
 
-  localStorage.setItem(
-    subStorageKey,
-    subGroup.classList.contains("collapsed")
-  );
+        localStorage.setItem(
+          subStorageKey,
+          subGroup.classList.contains("collapsed")
+        );
 
-});
+      });
 
       subCountMap.set(subMethod, subCount);
 
@@ -338,8 +371,8 @@ subTitle.addEventListener("click", () => {
 
           const img = document.createElement("img");
 
-          img.src = item.image;
-          img.loading = "lazy";
+          img.dataset.src = item.image;
+          img.classList.add("lazy-img");
 
           img.onerror = () => {
             img.src = "img/noimage.png";
@@ -349,6 +382,7 @@ subTitle.addEventListener("click", () => {
           div.append(inner);
 
           itemMap.set(item.id, div);
+          allItemIds.push(item.id);
 
           itemsDiv.append(div);
 
@@ -371,7 +405,34 @@ subTitle.addEventListener("click", () => {
 
   container.append(fragment);
 
+  setupLazyImages();
   updateAllCounts();
+
+}
+
+function setupLazyImages() {
+
+  const images = document.querySelectorAll(".lazy-img");
+
+  const observer = new IntersectionObserver((entries, obs) => {
+
+    entries.forEach(entry => {
+
+      if (!entry.isIntersecting) return;
+
+      const img = entry.target;
+
+      img.src = img.dataset.src;
+
+      obs.unobserve(img);
+
+    });
+
+  }, {
+    rootMargin: "200px"
+  });
+
+  images.forEach(img => observer.observe(img));
 
 }
 
@@ -431,16 +492,25 @@ function updateAllCounts() {
 
         const el = subCountMap.get(subMethod);
 
+        const normalIcon = sn === st && st !== 0 ? "■" : "□";
+        const anotherIcon = an === at && at !== 0 ? "■" : "□";
+
         el.innerHTML = `
-<span class="color-count normal">□ ${sn}/${st}</span>
-<span class="color-count another">（□ ${an}/${at}）</span>
+<span class="color-count normal">${normalIcon} ${sn}/${st}</span>
+<span class="color-count another">（${anotherIcon} ${an}/${at}）</span>
 `;
 
       }
 
+      const groupNormalIcon =
+        normalOwned === normalTotal && normalTotal !== 0 ? "■" : "□";
+
+      const groupAnotherIcon =
+        anotherOwned === anotherTotal && anotherTotal !== 0 ? "■" : "□";
+
       groupCount.innerHTML = `
-<div class="color-count normal">□ ${normalOwned}/${normalTotal}</div>
-<div class="color-count another">（□ ${anotherOwned}/${anotherTotal}）</div>
+<div class="color-count normal">${groupNormalIcon} ${normalOwned}/${normalTotal}</div>
+<div class="color-count another">（${groupAnotherIcon} ${anotherOwned}/${anotherTotal}）</div>
 `;
 
     });
@@ -475,8 +545,6 @@ container.addEventListener("click", e => {
 
 async function init() {
 
-  loadFromURL();
-
   try {
 
     const res = await fetch("items.csv");
@@ -494,6 +562,9 @@ async function init() {
     container.textContent = "データ読み込みに失敗しました";
 
   }
+
+  loadFromURL();
+  updateAllCounts();
 
 }
 

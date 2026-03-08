@@ -143,6 +143,10 @@ body {
   font-weight: bold;
 }
 
+.color-count.complete{
+  font-weight:bold;
+}
+
 .group-buttons button {
   margin-left: 6px;
   padding: 5px 10px;
