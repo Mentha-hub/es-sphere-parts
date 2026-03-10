@@ -112,7 +112,7 @@ document.getElementById("shareBtn").addEventListener("click", async () => {
   try {
 
     await navigator.clipboard.writeText(url);
-    alert("共有URLをコピーしました");
+    alert("URLをコピーしました");
 
   } catch {
 
