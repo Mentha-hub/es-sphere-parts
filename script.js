@@ -1,60 +1,74 @@
 const STORAGE_KEY = "codeParts_ownedItems_v1";
 const container = document.getElementById("container");
 
-let ownedItems = new Set(
-  JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
-);
+let ownedItems;
 
-const itemMap = new Map();
+try {
+  ownedItems = new Set(
+    JSON.parse(localStorage.getItem(STORAGE_KEY)) || []
+  );
+} catch {
+  ownedItems = new Set();
+}
+
 const groupCache = new Map();
 
-let groupedData;
 let allItemIds = [];
+let idSet = new Set();
 
 /* ===== URL読み込み ===== */
 
 function loadFromURL() {
 
   const params = new URLSearchParams(location.search);
-  const data = params.get("s");
+  const compressed = params.get("s");
 
- if (!compressed) return;
+  if (!compressed || compressed.length > 5000) return;
 
-try {
+  try {
 
-  const base64 = LZString.decompressFromEncodedURIComponent(compressed);
+    const base64 = LZString.decompressFromEncodedURIComponent(compressed);
+    if (!base64) return;
 
-  const binary = atob(base64);
+    const binary = atob(base64);
 
-  const ids = allItemIds;
-  const newOwned = new Set();
+    const ids = allItemIds;
+    const newOwned = new Set();
 
-  let bitIndex = 0;
+    let bitIndex = 0;
 
-  for (let i = 0; i < binary.length; i++) {
+    outer:
+    for (let i = 0; i < binary.length; i++) {
 
-    const byte = binary.charCodeAt(i);
+      const byte = binary.charCodeAt(i);
 
-    for (let b = 7; b >= 0; b--) {
+      for (let b = 7; b >= 0; b--) {
 
-      if (bitIndex >= ids.length) break;
+        if (bitIndex >= ids.length) break outer;
 
-      if ((byte >> b) & 1) {
-        newOwned.add(ids[bitIndex]);
+        if ((byte >> b) & 1) {
+          newOwned.add(ids[bitIndex]);
+        }
+
+        bitIndex++;
+
       }
-
-      bitIndex++;
 
     }
 
+    ownedItems = newOwned;
+    saveOwnedItems();
+
+    document.querySelectorAll(".item").forEach(el => {
+      const id = el.dataset.id;
+      el.classList.toggle("selected", ownedItems.has(id));
+    });
+
+    updateAllCounts();
+
+  } catch {
+    console.warn("URLデータ読み込み失敗");
   }
-
-  ownedItems = newOwned;
-  saveOwnedItems();
-
-} catch {
-  console.warn("URLデータ読み込み失敗");
-}
 
 }
 
@@ -62,13 +76,25 @@ try {
 
 function generateShareURL() {
 
-  const bitArray = allItemIds.map(id => ownedItems.has(id) ? 1 : 0);
-
   let binary = "";
 
-  for (let i = 0; i < bitArray.length; i += 8) {
-    const byte = bitArray.slice(i, i + 8).join("").padEnd(8, "0");
-    binary += String.fromCharCode(parseInt(byte, 2));
+  for (let i = 0; i < allItemIds.length; i += 8) {
+
+    let byte = 0;
+
+    for (let b = 0; b < 8; b++) {
+
+      const id = allItemIds[i + b];
+      if (!id) break;
+
+      if (ownedItems.has(id)) {
+        byte |= 1 << (7 - b);
+      }
+
+    }
+
+    binary += String.fromCharCode(byte);
+
   }
 
   const base64 = btoa(binary);
@@ -163,6 +189,9 @@ function parseCSV(text) {
     if (!lines[i].trim()) continue;
 
     const values = parseLine(lines[i]);
+
+    if (values.length !== headers.length) continue;
+
     const item = {};
 
     headers.forEach((header, index) => {
@@ -173,7 +202,9 @@ function parseCSV(text) {
 
     const { id, method, subMethod, detail, color, image } = item;
 
-    if (!method || !subMethod || !detail) continue;
+    if (!id || !method || !subMethod || !detail) continue;
+
+    if (color !== "normal" && color !== "another") continue;
 
     grouped[method] ??= {};
     grouped[method][subMethod] ??= {};
@@ -191,38 +222,13 @@ function parseCSV(text) {
 
 }
 
-/* ===== カウント ===== */
-
-function calculateCounts(methodData) {
-
-  let normalTotal = 0;
-  let anotherTotal = 0;
-
-  for (const subMethod in methodData) {
-
-    for (const detail in methodData[subMethod]) {
-
-      methodData[subMethod][detail].forEach(item => {
-
-        if (item.color === "normal") normalTotal++;
-        if (item.color === "another") anotherTotal++;
-
-      });
-
-    }
-
-  }
-
-  return { normalTotal, anotherTotal };
-
-}
 
 /* ===== 描画 ===== */
 
 function render(grouped) {
 
-  groupedData = grouped;
   allItemIds = [];
+  idSet.clear();
   groupCache.clear();
 
   const fragment = document.createDocumentFragment();
@@ -248,14 +254,14 @@ function render(grouped) {
     const groupCount = document.createElement("div");
     groupCount.className = "group-count";
 
-    titleLeft.append(titleText, groupCount);
-    groupTitle.append(titleLeft);
+    titleLeft.append(titleText);
+    groupTitle.append(titleLeft, groupCount);
 
     groupInner.append(groupTitle);
 
     /* ===== 折り畳み ===== */
 
-    const groupStorageKey = "groupState_" + method;
+    const groupStorageKey = `groupState_${encodeURIComponent(method)}`;
 
     const savedState = localStorage.getItem(groupStorageKey);
 
@@ -309,7 +315,11 @@ function render(grouped) {
 
       /* ===== 中グループ折り畳み ===== */
 
-      const subStorageKey = "subGroupState_" + method + "_" + subMethod;
+      const subStorageKey =
+        "subGroupState_" +
+        encodeURIComponent(method) +
+        "_" +
+        encodeURIComponent(subMethod);
 
       const savedSubState = localStorage.getItem(subStorageKey);
 
@@ -358,6 +368,11 @@ function render(grouped) {
 
         methodData[subMethod][detail].forEach(item => {
 
+          if (!idSet.has(item.id)) {
+            idSet.add(item.id);
+            allItemIds.push(item.id);
+          }
+
           const div = document.createElement("div");
           div.className = `item color-${item.color}`;
           div.dataset.id = item.id;
@@ -371,7 +386,7 @@ function render(grouped) {
 
           const img = document.createElement("img");
 
-          img.dataset.src = item.image;
+          img.dataset.src = item.image || "img/noimage.png";
           img.classList.add("lazy-img");
 
           img.onerror = () => {
@@ -380,9 +395,6 @@ function render(grouped) {
 
           inner.append(img);
           div.append(inner);
-
-          itemMap.set(item.id, div);
-          allItemIds.push(item.id);
 
           itemsDiv.append(div);
 
@@ -403,18 +415,20 @@ function render(grouped) {
 
   }
 
+  container.textContent = "";
   container.append(fragment);
 
   setupLazyImages();
-  updateAllCounts();
 
 }
 
+let imageObserver;
+
 function setupLazyImages() {
 
-  const images = document.querySelectorAll(".lazy-img");
+  if (imageObserver) imageObserver.disconnect();
 
-  const observer = new IntersectionObserver((entries, obs) => {
+  imageObserver = new IntersectionObserver((entries, obs) => {
 
     entries.forEach(entry => {
 
@@ -422,25 +436,34 @@ function setupLazyImages() {
 
       const img = entry.target;
 
-      img.src = img.dataset.src;
+      if (img.dataset.src) {
+        img.src = img.dataset.src;
+      } else {
+        img.src = "img/noimage.png";
+      }
 
       obs.unobserve(img);
 
     });
 
-  }, {
-    rootMargin: "200px"
-  });
+  }, { root: null, rootMargin: "400px" });
 
-  images.forEach(img => observer.observe(img));
-
+  document.querySelectorAll(".lazy-img")
+    .forEach(img => imageObserver.observe(img));
 }
 
 /* ===== カウント更新 ===== */
 
+let updateScheduled = false;
+
 function updateAllCounts() {
 
+  if (updateScheduled) return;
+  updateScheduled = true;
+
   requestAnimationFrame(() => {
+
+    updateScheduled = false;
 
     groupCache.forEach((cache, method) => {
 
@@ -496,8 +519,8 @@ function updateAllCounts() {
         const anotherIcon = an === at && at !== 0 ? "■" : "□";
 
         el.innerHTML = `
-<span class="color-count normal">${normalIcon} ${sn}/${st}</span>
-<span class="color-count another">（${anotherIcon} ${an}/${at}）</span>
+<span class="color-count">${normalIcon} ${sn}/${st}</span>
+<span class="color-count">（${anotherIcon} ${an}/${at}）</span>
 `;
 
       }
@@ -509,8 +532,8 @@ function updateAllCounts() {
         anotherOwned === anotherTotal && anotherTotal !== 0 ? "■" : "□";
 
       groupCount.innerHTML = `
-<div class="color-count normal">${groupNormalIcon} ${normalOwned}/${normalTotal}</div>
-<div class="color-count another">（${groupAnotherIcon} ${anotherOwned}/${anotherTotal}）</div>
+<div class="color-count">${groupNormalIcon} ${normalOwned}/${normalTotal}</div>
+<div class="color-count">（${groupAnotherIcon} ${anotherOwned}/${anotherTotal}）</div>
 `;
 
     });
@@ -547,7 +570,7 @@ async function init() {
 
   try {
 
-    const res = await fetch("items.csv");
+    const res = await fetch("items.csv", { cache: "no-store" })
 
     if (!res.ok) throw new Error("CSV取得失敗");
 
