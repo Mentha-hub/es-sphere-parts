@@ -359,9 +359,15 @@ function render(grouped) {
         const detailGroup = document.createElement("div");
         detailGroup.className = "detail-group";
 
-        const detailTitle = document.createElement("div");
-        detailTitle.className = "detail-title";
-        detailTitle.textContent = detail;
+        if (detail !== subMethod) {
+
+          const detailTitle = document.createElement("div");
+          detailTitle.className = "detail-title";
+          detailTitle.textContent = detail;
+
+          detailGroup.append(detailTitle);
+
+        }
 
         const itemsDiv = document.createElement("div");
         itemsDiv.className = "items";
@@ -400,7 +406,7 @@ function render(grouped) {
 
         });
 
-        detailGroup.append(detailTitle, itemsDiv);
+        detailGroup.append(itemsDiv);
         subInner.append(detailGroup);
 
       }
