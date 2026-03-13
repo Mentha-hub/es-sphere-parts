@@ -159,7 +159,7 @@ body {
   padding: 6px 12px;
   margin-bottom: 14px;
 
-  background: linear-gradient(90deg, #63E5D8, #e1ff9b);
+  background: linear-gradient(90deg, #63E5D8, #e5ffa9);
   color: #fff;
   font-weight: bold;
   cursor: pointer;
@@ -212,7 +212,6 @@ body {
 .item {
   aspect-ratio: 1/1;
   cursor: pointer;
-
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
@@ -258,6 +257,7 @@ body {
 
 .color-normal.selected .item-inner {
   background: linear-gradient(to top, #C7FF0B, #38F4D9);
+  border: 2px solid #e9fff6;
 }
 
 .color-another .item-inner {
@@ -266,6 +266,7 @@ body {
 
 .color-another.selected .item-inner {
   background: linear-gradient(#f791c5, #b088ff);
+  border: 2px solid #fff1f1;
 }
 
 /* ===== スマホ対応 ===== */
