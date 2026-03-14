@@ -210,18 +210,13 @@ function parseCSV(text) {
     grouped[method][subMethod] ??= {};
     grouped[method][subMethod][detail] ??= [];
 
-    grouped[method][subMethod][detail].push({
-      id,
-      color,
-      image
-    });
+    grouped[method][subMethod][detail].push({ id, color, image });
 
   }
 
   return grouped;
 
 }
-
 
 /* ===== 描画 ===== */
 
@@ -291,11 +286,7 @@ function render(grouped) {
 
     const subCountMap = new Map();
 
-    groupCache.set(method, {
-      methodData,
-      groupCount,
-      subCountMap
-    });
+    groupCache.set(method, { methodData, groupCount, subCountMap });
 
     for (const subMethod in methodData) {
 
@@ -337,6 +328,15 @@ function render(grouped) {
 
           const after = subGroup.getBoundingClientRect().top;
           window.scrollBy(0, after - before);
+
+          const toggleBtn = subGroup.closest(".group").querySelector(".toggle-all");
+          const subs = subGroup.closest(".group").querySelectorAll(".sub-group");
+
+          const anyOpen = [...subs].some(sub =>
+            !sub.classList.contains("collapsed")
+          );
+
+          toggleBtn.textContent = anyOpen ? "▲ すべて閉じる" : "▼ すべて開く";
 
         });
 
@@ -416,6 +416,16 @@ function render(grouped) {
 
     }
 
+    const footer = document.createElement("div");
+    footer.className = "group-footer";
+
+    const toggleBtn = document.createElement("button");
+    toggleBtn.className = "toggle-all";
+    toggleBtn.textContent = "▼ すべて開く";
+
+    footer.append(toggleBtn);
+    groupInner.append(footer);
+
     group.append(groupInner);
     fragment.append(group);
 
@@ -454,8 +464,7 @@ function setupLazyImages() {
 
   }, { root: null, rootMargin: "400px" });
 
-  document.querySelectorAll(".lazy-img")
-    .forEach(img => imageObserver.observe(img));
+  document.querySelectorAll(".lazy-img").forEach(img => imageObserver.observe(img));
 }
 
 /* ===== カウント更新 ===== */
@@ -497,8 +506,10 @@ function updateAllCounts() {
               normalTotal++;
 
               if (ownedItems.has(item.id)) {
+
                 sn++;
                 normalOwned++;
+
               }
 
             }
@@ -509,8 +520,10 @@ function updateAllCounts() {
               anotherTotal++;
 
               if (ownedItems.has(item.id)) {
+
                 an++;
                 anotherOwned++;
+
               }
 
             }
@@ -525,22 +538,21 @@ function updateAllCounts() {
         const anotherIcon = an === at && at !== 0 ? "■" : "□";
 
         el.innerHTML = `
-<span class="color-count">${normalIcon} ${sn}/${st}</span>
-<span class="color-count">（${anotherIcon} ${an}/${at}）</span>
-`;
+         <span class="color-count">${normalIcon} ${sn}/${st}</span>
+         <span class="color-count">（${anotherIcon} ${an}/${at}）</span>
+         `;
 
       }
 
       const groupNormalIcon =
         normalOwned === normalTotal && normalTotal !== 0 ? "■" : "□";
-
       const groupAnotherIcon =
         anotherOwned === anotherTotal && anotherTotal !== 0 ? "■" : "□";
 
       groupCount.innerHTML = `
-<div class="color-count">${groupNormalIcon} ${normalOwned}/${normalTotal}</div>
-<div class="color-count">（${groupAnotherIcon} ${anotherOwned}/${anotherTotal}）</div>
-`;
+      <div class="color-count">${groupNormalIcon} ${normalOwned}/${normalTotal}</div>
+      <div class="color-count">（${groupAnotherIcon} ${anotherOwned}/${anotherTotal}）</div>
+      `;
 
     });
 
@@ -551,6 +563,37 @@ function updateAllCounts() {
 /* ===== イベント委任 ===== */
 
 container.addEventListener("click", e => {
+
+  const toggleBtn = e.target.closest(".toggle-all");
+
+  if (toggleBtn) {
+
+    const group = toggleBtn.closest(".group");
+    const subs = group.querySelectorAll(".sub-group");
+
+    const anyOpen = [...subs].some(sub => !sub.classList.contains("collapsed"));
+
+    if (anyOpen) {
+
+      subs.forEach(sub => {
+        sub.classList.add("collapsed");
+      });
+
+      toggleBtn.textContent = "▼ すべて開く";
+
+    } else {
+
+      subs.forEach(sub => {
+        sub.classList.remove("collapsed");
+      });
+
+      toggleBtn.textContent = "▲ すべて閉じる";
+
+    }
+
+    return;
+
+  }
 
   const item = e.target.closest(".item");
   if (!item) return;

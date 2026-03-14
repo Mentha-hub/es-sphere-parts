@@ -125,6 +125,27 @@ body {
   content: "▶ ";
 }
 
+.group.collapsed .group-footer {
+  display: none;
+}
+
+.group-footer{
+  text-align:center;
+  margin-top:10px;
+}
+
+.toggle-all{
+  border:none;
+  background:none;
+  font-size:13px;
+  color:#104257;
+  cursor:pointer;
+}
+
+.toggle-all:hover{
+  text-decoration:underline;
+}
+
 /* ===== カウント ===== */
 
 .group-count {
