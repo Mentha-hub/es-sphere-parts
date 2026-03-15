@@ -8,7 +8,6 @@
   <title>コーデパーツコレクション所持状況確認</title>
 
   <link rel="stylesheet" href="style.css">
-  <link rel="preload" href="script.js" as="script">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.4.4/lz-string.min.js"></script>
   <script src="script.js" defer></script>
@@ -20,12 +19,19 @@
 
     <header class="header">
       <h1>コレクションガチャ別一覧</h1>
-      <button id="shareBtn">保存用URL</button>
     </header>
 
+    <div id="summary">
+      <div id="summary-count"></div>
+      <button id="shareBtn">保存用URL</button>
+    </div>
+
+    <div id="toast" role="status" aria-live="polite"></div>
+    
     <main id="container"></main>
 
   </div>
 
 </body>
+
 </html>
