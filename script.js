@@ -342,8 +342,8 @@ function loadFromURL() {
   try {
     const newOwned = new Set();
     const decoded = LZString.decompressFromEncodedURIComponent(compressed);
-    const binary = atob(decoded);
     if (!decoded) return;
+    const binary = atob(decoded);
     let bitIndex = 0;
     for (let i = 0; i < binary.length; i++) {
       const byte = binary.charCodeAt(i);
@@ -359,11 +359,16 @@ function loadFromURL() {
 
     container.querySelectorAll(".item").forEach(el => el.classList.toggle("selected", ownedItems.has(el.dataset.id)));
 
-    counterState.summary = { normalOwned: 0, normalTotal: 0, anotherOwned: 0, anotherTotal: 0 };
+    counterState.summary.normalOwned = 0;
+    counterState.summary.anotherOwned = 0;
+
     counterState.groups.forEach(group => {
       group.normalOwned = 0;
       group.anotherOwned = 0;
-      group.subs.forEach(sub => { sub.normalOwned = 0; sub.anotherOwned = 0; });
+      group.subs.forEach(sub => {
+        sub.normalOwned = 0;
+        sub.anotherOwned = 0;
+      });
     });
 
     ownedItems.forEach(id => {
