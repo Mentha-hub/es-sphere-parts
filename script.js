@@ -76,7 +76,7 @@ function parseCSV(text) {
     grouped[method][subMethod] ??= {};
     grouped[method][subMethod][detail] ??= [];
 
-    const safeImage = image && !image.startsWith("javascript:") ? image : "img/noimage.png";
+    const safeImage = image && !image.startsWith("javascript:") ? image : NO_IMAGE_SRC;
     grouped[method][subMethod][detail].push({ id, color, image: safeImage });
   }
 
@@ -342,11 +342,11 @@ function loadFromURL() {
   try {
     const newOwned = new Set();
     const decoded = LZString.decompressFromEncodedURIComponent(compressed);
+    const binary = atob(decoded);
     if (!decoded) return;
-
     let bitIndex = 0;
-    for (let i = 0; i < decoded.length; i++) {
-      const byte = decoded.charCodeAt(i);
+    for (let i = 0; i < binary.length; i++) {
+      const byte = binary.charCodeAt(i);
       for (let b = 7; b >= 0; b--) {
         if (bitIndex >= allItemIds.length) break;
         if ((byte >> b) & 1) newOwned.add(allItemIds[bitIndex]);
