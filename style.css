@@ -65,7 +65,6 @@ body {
 }
 
 #shareBtn {
-
   margin-left: auto;
 
   padding: 6px 10px;
@@ -76,7 +75,6 @@ body {
 
   background: #ECF8F1;
   cursor: pointer;
-
 }
 
 /* ===== サマリー ===== */
@@ -281,9 +279,13 @@ body {
   height: 100%;
   object-fit: contain;
 
-  background: #fff;
+  background: #bbbbbb;
   border-radius: 6px;
   display: block;
+}
+
+.item.selected img {
+  background: #fff;
 }
 
 /* ===== 色 ===== */
@@ -292,14 +294,14 @@ body {
 
 .color-normal.selected .item-inner {
   background: linear-gradient(to top, #C7FF0B, #38F4D9);
-  border: 2px solid #e9fff6;
+  border: 2px solid #98ffa7;
 }
 
 .color-another .item-inner { border: 2px solid #fbacff; }
 
 .color-another.selected .item-inner {
   background: linear-gradient(#f791c5, #b088ff);
-  border: 2px solid #fff1f1;
+  border: 2px solid #ffa6fc;
 }
 
 /* ===== スマホ対応 ===== */
