@@ -311,8 +311,17 @@ function updateCountsForItem(id, isAdd) {
   gCache.groupAnother.textContent = `（${getIcon(groupState.anotherOwned, groupState.anotherTotal)} ${groupState.anotherOwned}/${groupState.anotherTotal}）`;
 
   const s = counterState.summary;
-  summary.children[0].textContent = `${getIcon(s.normalOwned, s.normalTotal)} ${s.normalOwned}/${s.normalTotal}`;
-  summary.children[1].textContent = `（${getIcon(s.anotherOwned, s.anotherTotal)} ${s.anotherOwned}/${s.anotherTotal}）`;
+
+  const owned = s.normalOwned + s.anotherOwned;
+  const total = s.normalTotal + s.anotherTotal;
+  const rate = total ? Math.floor((owned / total) * 100) : 0;
+
+  summary.children[0].textContent =
+    `全体 ${owned}/${total} (${rate}%)`;
+
+  summary.children[1].textContent =
+    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
+    `アナザー ${s.anotherOwned}/${s.anotherTotal}]`;
 }
 
 function renderCounts() {
@@ -329,8 +338,17 @@ function renderCounts() {
   });
 
   const s = counterState.summary;
-  summary.children[0].textContent = `${getIcon(s.normalOwned, s.normalTotal)} ${s.normalOwned}/${s.normalTotal}`;
-  summary.children[1].textContent = `（${getIcon(s.anotherOwned, s.anotherTotal)} ${s.anotherOwned}/${s.anotherTotal}）`;
+
+  const owned = s.normalOwned + s.anotherOwned;
+  const total = s.normalTotal + s.anotherTotal;
+  const rate = total ? Math.floor((owned / total) * 100) : 0;
+
+  summary.children[0].textContent =
+    `全体 ${owned}/${total} (${rate}%)`;
+
+  summary.children[1].textContent =
+    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
+    `アナザー ${s.anotherOwned}/${s.anotherTotal}]`;
 }
 
 /* ===== URL読み込み・共有 ===== */
@@ -401,10 +419,25 @@ function generateShareURL() {
   return `${location.origin}${location.pathname}?s=${LZString.compressToEncodedURIComponent(base64)}`;
 }
 
-document.getElementById("shareBtn").addEventListener("click", async () => {
+document.getElementById("shareBtn").addEventListener("click", () => {
   const url = generateShareURL();
-  try { await navigator.clipboard.writeText(url); showToast("URLをコピーしました"); }
-  catch { prompt("URLをコピーしてください", url); }
+  const s = counterState.summary;
+
+  const owned = s.normalOwned + s.anotherOwned;
+  const total = s.normalTotal + s.anotherTotal;
+  const rate = total ? Math.floor((owned / total) * 100) : 0;
+
+  const text =
+    `コーデパーツ所持状況\n ` +
+    `全体 ${owned}/${total} (${rate}%) \n` +
+    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
+    `アナザーカラー ${s.anotherOwned}/${s.anotherTotal}]`;
+
+  const shareUrl =
+    "https://x.com/intent/tweet?text=" +
+    encodeURIComponent(text + " " + url);
+
+  window.open(shareUrl, "_blank");
 });
 
 /* ===== 初期化 ===== */
