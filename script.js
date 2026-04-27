@@ -38,6 +38,29 @@ function saveOwnedItems() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify([...ownedItems]));
 }
 
+function updateSummaryLayout() {
+  const s = counterState.summary;
+
+  const owned = s.normalOwned + s.anotherOwned;
+  const total = s.normalTotal + s.anotherTotal;
+  const rate = total ? Math.floor((owned / total) * 100) : 0;
+
+  if (window.innerWidth <= 700) {
+    summary.innerHTML = `
+      <span class="color-count">全体 ${owned}/${total} (${rate}%)</span>
+      <span class="color-count">ノーマルカラー ${s.normalOwned}/${s.normalTotal}</span>
+      <span class="color-count">アナザー ${s.anotherOwned}/${s.anotherTotal}</span>
+    `;
+  } else {
+    summary.innerHTML = `
+      <span class="color-count">全体 ${owned}/${total} (${rate}%)</span>
+      <span class="color-count">ノーマルカラー ${s.normalOwned}/${s.normalTotal}　アナザー ${s.anotherOwned}/${s.anotherTotal}</span>
+    `;
+  }
+}
+
+window.addEventListener("resize", updateSummaryLayout);
+
 /* ===== CSVパース ===== */
 function parseLine(line) {
   const result = [];
@@ -316,12 +339,7 @@ function updateCountsForItem(id, isAdd) {
   const total = s.normalTotal + s.anotherTotal;
   const rate = total ? Math.floor((owned / total) * 100) : 0;
 
-  summary.children[0].textContent =
-    `全体 ${owned}/${total} (${rate}%)`;
-
-  summary.children[1].textContent =
-    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
-    `アナザー ${s.anotherOwned}/${s.anotherTotal}]`;
+  updateSummaryLayout();
 }
 
 function renderCounts() {
@@ -343,12 +361,7 @@ function renderCounts() {
   const total = s.normalTotal + s.anotherTotal;
   const rate = total ? Math.floor((owned / total) * 100) : 0;
 
-  summary.children[0].textContent =
-    `全体 ${owned}/${total} (${rate}%)`;
-
-  summary.children[1].textContent =
-    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
-    `アナザー ${s.anotherOwned}/${s.anotherTotal}]`;
+  updateSummaryLayout();
 }
 
 /* ===== URL読み込み・共有 ===== */
@@ -430,8 +443,8 @@ document.getElementById("shareBtn").addEventListener("click", () => {
   const text =
     `コーデパーツ所持状況\n ` +
     `全体 ${owned}/${total} (${rate}%) \n` +
-    `[ノーマルカラー ${s.normalOwned}/${s.normalTotal} , ` +
-    `アナザーカラー ${s.anotherOwned}/${s.anotherTotal}]`;
+    `ノーマルカラー ${s.normalOwned}/${s.normalTotal}  ` +
+    `アナザーカラー ${s.anotherOwned}/${s.anotherTotal}`;
 
   const shareUrl =
     "https://x.com/intent/tweet?text=" +
@@ -456,6 +469,7 @@ async function init() {
   getSummarySpans();
   loadFromURL();
   renderCounts();
+  updateSummaryLayout();
 }
 
 /* ===== イベント委任 ===== */
