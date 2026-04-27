@@ -453,6 +453,34 @@ document.getElementById("shareBtn").addEventListener("click", () => {
   window.open(shareUrl, "_blank");
 });
 
+document.getElementById("resetBtn").addEventListener("click", () => {
+
+  if (!confirm("選択状態をすべて解除しますか？")) return;
+
+  ownedItems.clear();
+  saveOwnedItems();
+
+  container.querySelectorAll(".item.selected").forEach(el => {
+    el.classList.remove("selected");
+  });
+
+  counterState.summary.normalOwned = 0;
+  counterState.summary.anotherOwned = 0;
+
+  counterState.groups.forEach(group => {
+    group.normalOwned = 0;
+    group.anotherOwned = 0;
+
+    group.subs.forEach(sub => {
+      sub.normalOwned = 0;
+      sub.anotherOwned = 0;
+    });
+  });
+
+  renderCounts();
+  showToast("すべて解除しました");
+});
+
 /* ===== 初期化 ===== */
 async function init() {
   try {
