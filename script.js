@@ -642,7 +642,7 @@ document.getElementById("shareBtn").addEventListener("click", () => {
   const text =
     `コーデパーツ所持状況\n` +
     `全体 ${owned}/${total} (${rate}%)\n` +
-    `BMU ${bmuOwned}/${bmuTotal}` +
+    `BMU!! ${bmuOwned}/${bmuTotal}` +
     ` デイリー ${dailyOwned}/${dailyTotal}`;
 
   const shareUrl =
