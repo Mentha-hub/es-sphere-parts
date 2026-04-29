@@ -10,8 +10,10 @@ try {
 }
 
 const groupCache = new Map();
+const seriesCache = new Map();
 const groupSubCache = new Map();
 const itemMetaMap = new Map();
+const methodSeriesMap = new Map();
 
 const counterState = {
   summary: { normalOwned: 0, normalTotal: 0, anotherOwned: 0, anotherTotal: 0 },
@@ -45,16 +47,45 @@ function updateSummaryLayout() {
   const total = s.normalTotal + s.anotherTotal;
   const rate = total ? Math.floor((owned / total) * 100) : 0;
 
+  let bmuOwned = 0;
+  let bmuTotal = 0;
+
+  let dailyOwned = 0;
+  let dailyTotal = 0;
+
+  counterState.groups.forEach((state, method) => {
+    const series = methodSeriesMap.get(method);
+
+    const methodOwned =
+      state.normalOwned + state.anotherOwned;
+
+    const methodTotal =
+      state.normalTotal + state.anotherTotal;
+
+    if (series === "Bright me up!!シリーズ") {
+      bmuOwned += methodOwned;
+      bmuTotal += methodTotal;
+    }
+
+    if (series === "デイリーシリーズ") {
+      dailyOwned += methodOwned;
+      dailyTotal += methodTotal;
+    }
+  });
+
   if (window.innerWidth <= 700) {
     summary.innerHTML = `
       <span class="color-count">全体 ${owned}/${total} (${rate}%)</span>
-      <span class="color-count">ノーマルカラー ${s.normalOwned}/${s.normalTotal}</span>
-      <span class="color-count">アナザー ${s.anotherOwned}/${s.anotherTotal}</span>
+      <span class="color-count">BMU!! ${bmuOwned}/${bmuTotal}</span>
+      <span class="color-count">デイリー ${dailyOwned}/${dailyTotal}</span>
     `;
   } else {
     summary.innerHTML = `
       <span class="color-count">全体 ${owned}/${total} (${rate}%)</span>
-      <span class="color-count">ノーマルカラー ${s.normalOwned}/${s.normalTotal}　アナザー ${s.anotherOwned}/${s.anotherTotal}</span>
+      <span class="color-count">
+         BMU!! ${bmuOwned}/${bmuTotal}
+        　デイリー ${dailyOwned}/${dailyTotal}
+      </span>
     `;
   }
 }
@@ -85,22 +116,35 @@ function parseCSV(text) {
 
   for (let i = 1; i < lines.length; i++) {
     if (!lines[i].trim()) continue;
+
     const values = parseLine(lines[i]);
     if (values.length !== headers.length) continue;
 
     const item = {};
-    headers.forEach((header, idx) => item[header.trim()] = values[idx]?.trim() || "");
+    headers.forEach((header, idx) => {
+      item[header.trim()] = values[idx]?.trim() || "";
+    });
 
-    const { id, method, subMethod, detail, color, image } = item;
-    if (!id || !method || !subMethod || !detail) continue;
+    const { id, series, method, subMethod, detail, color, image } = item;
+
+    if (!id || !series || !method || !subMethod || !detail) continue;
     if (color !== "normal" && color !== "another") continue;
 
-    grouped[method] ??= {};
-    grouped[method][subMethod] ??= {};
-    grouped[method][subMethod][detail] ??= [];
+    grouped[series] ??= {};
+    grouped[series][method] ??= {};
+    grouped[series][method][subMethod] ??= {};
+    grouped[series][method][subMethod][detail] ??= [];
 
-    const safeImage = image && !image.startsWith("javascript:") ? image : NO_IMAGE_SRC;
-    grouped[method][subMethod][detail].push({ id, color, image: safeImage });
+    const safeImage =
+      image && !image.startsWith("javascript:")
+        ? image
+        : NO_IMAGE_SRC;
+
+    grouped[series][method][subMethod][detail].push({
+      id,
+      color,
+      image: safeImage
+    });
   }
 
   return grouped;
@@ -295,15 +339,81 @@ function createGroupElement(method, methodData) {
   return group;
 }
 
+function createSeriesElement(series, methods) {
+  const section = document.createElement("section");
+  section.className = "series";
+  section.dataset.series = series;
+
+  if (series === "Bright me up!!シリーズ") {
+    section.classList.add("series-bmu");
+
+  } else if (series === "デイリーシリーズ") {
+    section.classList.add("series-daily");
+
+  } else {
+    section.classList.add("series-new");
+  }
+
+  const savedState =
+    localStorage.getItem("seriesState_" + encodeURIComponent(series));
+
+  if (savedState === "true") {
+    section.classList.add("collapsed");
+  }
+
+  const title = document.createElement("div");
+  title.className = "series-title";
+
+  const left = document.createElement("span");
+  left.className = "series-name";
+  left.textContent = series;
+
+  const count = document.createElement("span");
+  count.className = "series-count";
+
+  title.append(left, count);
+
+  title.addEventListener("click", () => {
+    section.classList.toggle("collapsed");
+
+    localStorage.setItem(
+      "seriesState_" + encodeURIComponent(series),
+      section.classList.contains("collapsed")
+    );
+  });
+
+  section.append(title);
+
+  const body = document.createElement("div");
+  body.className = "series-body";
+
+  for (const [method, methodData] of Object.entries(methods)) {
+    methodSeriesMap.set(method, series);
+
+    const group = createGroupElement(method, methodData);
+    body.append(group);
+  }
+
+  section.append(body);
+
+  seriesCache.set(series, count);
+
+  return section;
+}
+
 /* ===== render ===== */
 function render(grouped) {
   allItemIds = [];
-  groupCache.clear(); groupSubCache.clear(); itemMetaMap.clear(); counterState.groups.clear();
+  groupCache.clear();
+  groupSubCache.clear();
+  itemMetaMap.clear();
+  counterState.groups.clear();
 
   const fragment = document.createDocumentFragment();
-  for (const [method, methodData] of Object.entries(grouped)) {
-    const group = createGroupElement(method, methodData);
-    fragment.append(group);
+
+  for (const [series, methods] of Object.entries(grouped)) {
+    const seriesEl = createSeriesElement(series, methods);
+    fragment.append(seriesEl);
   }
 
   container.textContent = "";
@@ -322,45 +432,107 @@ function updateCountsForItem(id, isAdd) {
   const subState = groupState.subs.get(subMethod);
   const delta = isAdd ? 1 : -1;
 
-  if (color === "normal") { subState.normalOwned += delta; groupState.normalOwned += delta; counterState.summary.normalOwned += delta; }
-  if (color === "another") { subState.anotherOwned += delta; groupState.anotherOwned += delta; counterState.summary.anotherOwned += delta; }
+  if (color === "normal") {
+    subState.normalOwned += delta;
+    groupState.normalOwned += delta;
+    counterState.summary.normalOwned += delta;
+  }
 
-  const subCache = groupCache.get(method).subCountMap.get(subMethod);
-  subCache.normal.textContent = `${getIcon(subState.normalOwned, subState.normalTotal)} ${subState.normalOwned}/${subState.normalTotal}`;
-  subCache.another.textContent = `（${getIcon(subState.anotherOwned, subState.anotherTotal)} ${subState.anotherOwned}/${subState.anotherTotal}）`;
+  if (color === "another") {
+    subState.anotherOwned += delta;
+    groupState.anotherOwned += delta;
+    counterState.summary.anotherOwned += delta;
+  }
+
+  const series = methodSeriesMap.get(method);
+  const isDaily = series === "デイリーシリーズ";
+
+  const subCache =
+    groupCache.get(method).subCountMap.get(subMethod);
+
+  subCache.normal.textContent =
+    `${getIcon(subState.normalOwned, subState.normalTotal)} ` +
+    `${subState.normalOwned}/${subState.normalTotal}`;
+
+  subCache.another.textContent = isDaily
+    ? ""
+    : `（${getIcon(subState.anotherOwned, subState.anotherTotal)} ` +
+      `${subState.anotherOwned}/${subState.anotherTotal}）`;
 
   const gCache = groupCache.get(method);
-  gCache.groupNormal.textContent = `${getIcon(groupState.normalOwned, groupState.normalTotal)} ${groupState.normalOwned}/${groupState.normalTotal}`;
-  gCache.groupAnother.textContent = `（${getIcon(groupState.anotherOwned, groupState.anotherTotal)} ${groupState.anotherOwned}/${groupState.anotherTotal}）`;
 
-  const s = counterState.summary;
+  gCache.groupNormal.textContent =
+    `${getIcon(groupState.normalOwned, groupState.normalTotal)} ` +
+    `${groupState.normalOwned}/${groupState.normalTotal}`;
 
-  const owned = s.normalOwned + s.anotherOwned;
-  const total = s.normalTotal + s.anotherTotal;
-  const rate = total ? Math.floor((owned / total) * 100) : 0;
+  gCache.groupAnother.textContent = isDaily
+    ? ""
+    : `（${getIcon(groupState.anotherOwned, groupState.anotherTotal)} ` +
+      `${groupState.anotherOwned}/${groupState.anotherTotal}）`;
 
+  updateSeriesCounts();
   updateSummaryLayout();
+}
+
+function updateSeriesCounts() {
+  seriesCache.forEach((countEl, seriesName) => {
+    const section = document.querySelector(
+      `.series[data-series="${seriesName}"]`
+    );
+
+    const methods = section.querySelectorAll(".group");
+
+    let owned = 0;
+    let total = 0;
+
+    methods.forEach(group => {
+      const method = group.dataset.method;
+      const state = counterState.groups.get(method);
+
+      owned += state.normalOwned + state.anotherOwned;
+      total += state.normalTotal + state.anotherTotal;
+    });
+
+    const rate = total
+      ? Math.floor((owned / total) * 100)
+      : 0;
+
+    countEl.textContent =
+      `${owned}/${total} (${rate}%)`;
+  });
 }
 
 function renderCounts() {
   groupCache.forEach((cache, method) => {
     const state = counterState.groups.get(method);
-    cache.groupNormal.textContent = `${getIcon(state.normalOwned, state.normalTotal)} ${state.normalOwned}/${state.normalTotal}`;
-    cache.groupAnother.textContent = `（${getIcon(state.anotherOwned, state.anotherTotal)} ${state.anotherOwned}/${state.anotherTotal}）`;
+
+    const series = methodSeriesMap.get(method);
+    const isDaily = series === "デイリーシリーズ";
+
+    cache.groupNormal.textContent =
+      `${getIcon(state.normalOwned, state.normalTotal)} ` +
+      `${state.normalOwned}/${state.normalTotal}`;
+
+    cache.groupAnother.textContent = isDaily
+      ? ""
+      : `（${getIcon(state.anotherOwned, state.anotherTotal)} ` +
+        `${state.anotherOwned}/${state.anotherTotal}）`;
 
     state.subs.forEach((subState, subMethod) => {
       const el = cache.subCountMap.get(subMethod);
-      el.normal.textContent = `${getIcon(subState.normalOwned, subState.normalTotal)} ${subState.normalOwned}/${subState.normalTotal}`;
-      el.another.textContent = `（${getIcon(subState.anotherOwned, subState.anotherTotal)} ${subState.anotherOwned}/${subState.anotherTotal}）`;
+
+      el.normal.textContent =
+        `${getIcon(subState.normalOwned, subState.normalTotal)} ` +
+        `${subState.normalOwned}/${subState.normalTotal}`;
+
+      el.another.textContent = isDaily
+        ? ""
+        : `（${getIcon(subState.anotherOwned, subState.anotherTotal)} ` +
+          `${subState.anotherOwned}/${subState.anotherTotal}）`;
     });
   });
 
-  const s = counterState.summary;
-
-  const owned = s.normalOwned + s.anotherOwned;
-  const total = s.normalTotal + s.anotherTotal;
-  const rate = total ? Math.floor((owned / total) * 100) : 0;
-
+  updateSeriesCounts();
   updateSummaryLayout();
 }
 
@@ -443,8 +615,8 @@ document.getElementById("shareBtn").addEventListener("click", () => {
   const text =
     `コーデパーツ所持状況\n ` +
     `全体 ${owned}/${total} (${rate}%) \n` +
-    `ノーマルカラー ${s.normalOwned}/${s.normalTotal}  ` +
-    `アナザーカラー ${s.anotherOwned}/${s.anotherTotal}`;
+    `BMU!! ${s.normalOwned}/${s.normalTotal}  ` +
+    `BMUアナザー ${s.anotherOwned}/${s.anotherTotal}`;
 
   const shareUrl =
     "https://x.com/intent/tweet?text=" +
@@ -503,29 +675,73 @@ async function init() {
 /* ===== イベント委任 ===== */
 container.addEventListener("click", e => {
   const toggleBtn = e.target.closest(".toggle-all");
+
   if (toggleBtn) {
     const group = toggleBtn.closest(".group");
     const method = group.dataset.method;
     const subs = groupSubCache.get(method);
-    const anyOpen = [...subs].some(sub => !sub.classList.contains("collapsed"));
 
-    subs.forEach(sub => {
-      sub.classList.toggle("collapsed", anyOpen);
-      const key = `subGroupState_${encodeURIComponent(method)}_${encodeURIComponent(sub.dataset.subMethod)}`;
-      localStorage.setItem(key, anyOpen.toString());
-    });
+    /* 1つでも開いているサブがあるか */
+    const anyOpen = [...subs].some(
+      sub => !sub.classList.contains("collapsed")
+    );
 
-    toggleBtn.textContent = anyOpen ? "▼ すべて開く" : "▲ すべて閉じる";
+    if (anyOpen) {
+      /* ===== すべて閉じる ===== */
+      group.classList.add("collapsed");
+
+      subs.forEach(sub => {
+        sub.classList.add("collapsed");
+
+        const key =
+          `subGroupState_${encodeURIComponent(method)}_${encodeURIComponent(sub.dataset.subMethod)}`;
+
+        localStorage.setItem(key, "true");
+      });
+
+      localStorage.setItem(
+        `groupState_${encodeURIComponent(method)}`,
+        "true"
+      );
+
+      toggleBtn.textContent = "▼ すべて開く";
+
+    } else {
+      /* ===== すべて開く ===== */
+      group.classList.remove("collapsed");
+
+      subs.forEach(sub => {
+        sub.classList.remove("collapsed");
+
+        const key =
+          `subGroupState_${encodeURIComponent(method)}_${encodeURIComponent(sub.dataset.subMethod)}`;
+
+        localStorage.setItem(key, "false");
+      });
+
+      localStorage.setItem(
+        `groupState_${encodeURIComponent(method)}`,
+        "false"
+      );
+
+      toggleBtn.textContent = "▲ すべて閉じる";
+    }
+
     return;
   }
 
   const item = e.target.closest(".item");
   if (!item) return;
+
   const id = item.dataset.id;
+
   item.classList.toggle("selected");
 
-  if (item.classList.contains("selected")) ownedItems.add(id);
-  else ownedItems.delete(id);
+  if (item.classList.contains("selected")) {
+    ownedItems.add(id);
+  } else {
+    ownedItems.delete(id);
+  }
 
   saveOwnedItems();
   updateCountsForItem(id, item.classList.contains("selected"));
