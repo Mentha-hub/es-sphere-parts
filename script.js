@@ -606,25 +606,51 @@ function generateShareURL() {
 
 document.getElementById("shareBtn").addEventListener("click", () => {
   const url = generateShareURL();
+
   const s = counterState.summary;
 
   const owned = s.normalOwned + s.anotherOwned;
   const total = s.normalTotal + s.anotherTotal;
   const rate = total ? Math.floor((owned / total) * 100) : 0;
 
+  let bmuOwned = 0;
+  let bmuTotal = 0;
+
+  let dailyOwned = 0;
+  let dailyTotal = 0;
+
+  counterState.groups.forEach((state, method) => {
+    const series = methodSeriesMap.get(method);
+
+    const methodOwned =
+      state.normalOwned + state.anotherOwned;
+
+    const methodTotal =
+      state.normalTotal + state.anotherTotal;
+
+    if (series === "Bright me up!!シリーズ") {
+      bmuOwned += methodOwned;
+      bmuTotal += methodTotal;
+    }
+
+    if (series === "デイリーシリーズ") {
+      dailyOwned += methodOwned;
+      dailyTotal += methodTotal;
+    }
+  });
+
   const text =
-    `コーデパーツ所持状況\n ` +
-    `全体 ${owned}/${total} (${rate}%) \n` +
-    `BMU!! ${s.normalOwned}/${s.normalTotal}  ` +
-    `BMUアナザー ${s.anotherOwned}/${s.anotherTotal}`;
+    `コーデパーツ所持状況\n` +
+    `全体 ${owned}/${total} (${rate}%)\n` +
+    `BMU ${bmuOwned}/${bmuTotal}` +
+    ` デイリー ${dailyOwned}/${dailyTotal}`;
 
   const shareUrl =
     "https://x.com/intent/tweet?text=" +
-    encodeURIComponent(text + " " + url);
+    encodeURIComponent(text + "\n" + url);
 
   window.open(shareUrl, "_blank");
 });
-
 document.getElementById("resetBtn").addEventListener("click", () => {
 
   if (!confirm("選択状態をすべて解除しますか？")) return;
